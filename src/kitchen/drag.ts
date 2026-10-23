@@ -52,6 +52,20 @@ export function beginDrag(id: number, clientX: number, clientY: number, fromTray
   pointToPlane(clientX, clientY, drag.target)
 }
 
+/**
+ * Tray taps waiting to be dropped, with the frames their body has existed. A body that was just
+ * created still gets its spawn transform re-applied by Rapier, so the drop waits a couple of frames.
+ */
+export const pendingDrops = new Map<number, number>()
+
+/** Drops an ingredient from above onto a random spot of the pizza. */
+export function dropOnPizza(body: RapierRigidBody) {
+  const a = Math.random() * Math.PI * 2
+  const r = Math.sqrt(Math.random()) * 2.2
+  body.setTranslation({ x: Math.cos(a) * r, y: 3.2, z: Math.sin(a) * r }, true)
+  body.setLinvel({ x: 0, y: -1, z: 0 }, true)
+}
+
 export function isOnPizza(body: RapierRigidBody) {
   const p = body.translation()
   return Math.hypot(p.x, p.z) <= PIZZA_RADIUS && p.y > 0.2 && p.y < 8

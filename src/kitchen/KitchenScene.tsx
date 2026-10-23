@@ -12,7 +12,7 @@ import * as THREE from 'three'
 import { playHit, unlockAudio } from '../audio/sfx'
 import { SPIN_SPEEDS, useGame, type Piece } from '../game/gameStore'
 import { INGREDIENTS, type IngredientDef } from '../game/ingredients'
-import { beginDrag, bodies, drag, pointToPlane, setView, turntable } from './drag'
+import { beginDrag, bodies, drag, dropOnPizza, pendingDrops, pointToPlane, setView, turntable } from './drag'
 import { IngredientMesh } from './IngredientMesh'
 import { COUNTER } from './KitchenSet'
 import { PizzaBase } from './PizzaBase'
@@ -120,12 +120,9 @@ function DragController() {
       if (drag.id === null) return
       const body = bodies.get(drag.id)
       const quickTap = drag.fromTray && !drag.moved && performance.now() - drag.startT < 300
-      if (body && quickTap) {
-        // A tap on the tray drops the ingredient onto a random spot of the pizza.
-        const a = Math.random() * Math.PI * 2
-        const r = Math.sqrt(Math.random()) * 2.2
-        body.setTranslation({ x: Math.cos(a) * r, y: 3.2, z: Math.sin(a) * r }, true)
-        body.setLinvel({ x: 0, y: -1, z: 0 }, true)
+      if (quickTap) {
+        // A tap on the tray drops the ingredient onto the pizza, once its freshly created body has settled in.
+        pendingDrops.set(drag.id, 0)
       } else if (body) {
         const lv = body.linvel()
         const speed = Math.hypot(lv.x, lv.y, lv.z)
@@ -148,6 +145,15 @@ function DragController() {
 
   const v = useMemo(() => new THREE.Vector3(), [])
   useFrame(() => {
+    for (const [id, frames] of pendingDrops) {
+      const body = bodies.get(id)
+      if (!body) continue
+      if (frames < 2) pendingDrops.set(id, frames + 1)
+      else {
+        dropOnPizza(body)
+        pendingDrops.delete(id)
+      }
+    }
     if (drag.id !== null) {
       const body = bodies.get(drag.id)
       if (body) {
